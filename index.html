@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Kurva S — Monitoring Anggaran 2026</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg:       #0b0e18;
+    --surface:  #111625;
+    --border:   #1e2740;
+    --muted:    #3a4a6b;
+    --text:     #c8d6f0;
+    --dim:      #5a6f96;
+    --orange:   #f97316;
+    --blue:     #3b82f6;
+    --green:    #22c55e;
+    --purple:   #818cf8;
+    --red:      #ef4444;
+    --yellow:   #eab308;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'IBM Plex Mono', monospace; font-size: 13px; }
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: var(--surface); }
+  ::-webkit-scrollbar-thumb { background: var(--muted); border-radius: 3px; }
+
+  .tab-btn { border-bottom: 2px solid transparent; transition: all .2s; }
+  .tab-btn.active { color: var(--orange); border-color: var(--orange); }
+
+  .filter-btn { border: 1px solid var(--border); transition: all .15s; }
+  .filter-btn.active { background: var(--orange); border-color: var(--orange); color: #fff; }
+  .filter-btn:not(.active):hover { border-color: var(--muted); }
+
+  .badge { display: inline-block; padding: 1px 8px; border-radius: 99px; font-size: 10px; border: 1px solid; cursor: pointer; transition: opacity .15s; }
+  .badge:hover { opacity: .75; }
+
+  input, select {
+    background: var(--bg); border: 1px solid var(--border); color: var(--text);
+    padding: 5px 8px; border-radius: 4px; font-family: inherit; font-size: 11px;
+    transition: border-color .15s;
+  }
+  input:focus, select:focus { outline: none; border-color: var(--orange); }
+
+  .tr-hover:hover { background: rgba(249,115,22,0.03) !important; }
+
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.75);
+    z-index: 1000; display: flex; align-items: center; justify-content: center;
+    opacity: 0; pointer-events: none; transition: opacity .2s;
+  }
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+  .modal-box { transform: translateY(12px); transition: transform .2s; }
+  .modal-overlay.open .modal-box { transform: translateY(0); }
+
+  .toast {
+    position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+    padding: 10px 18px; border-radius: 6px; font-size: 12px;
+    opacity: 0; transform: translateY(8px); transition: all .25s;
+    pointer-events: none;
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+
+  .progress-bar { height: 4px; background: var(--border); border-radius: 3px; overflow: hidden; }
+  .progress-fill { height: 100%; border-radius: 3px; transition: width .6s ease; }
+
+  .kpi-card { border-top: 3px solid; }
+
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div style="background:var(--surface);border-bottom:1px solid var(--border);" class="px-6 py-4 flex items-center justify-between">
+  <div>
+    <div class="text-xs tracking-widest mb-1" style="color:var(--dim);letter-spacing:.2em">SISTEM MONITORING ANGGARAN</div>
+    <div style="font-family:'IBM Plex Sans',sans-serif;font-size:18px;font-weight:700;color:#f1f5f9;">
+      KURVA S <span style="color:var(--orange)">—</span> RENCANA PENYERAPAN ANGGARAN
+    </div>
+    <div class="text-xs mt-1" style="color:var(--dim)">Tahun Anggaran 2026 &middot; Sumber Dana: Pajak Air Tanah</div>
+  </div>
+  <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;">
+    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+      <input type="file" id="json-file-input" accept=".json" style="display:none" onchange="importJSON(this)"/>
+      <button onclick="triggerImportJSON()"
+        style="background:#1e2740;border:1px solid var(--border);color:#94a3b8;padding:6px 12px;border-radius:4px;cursor:pointer;font-family:inherit;font-size:11px;">
+        ↑ Muat JSON
+      </button>
+      <button onclick="exportJSON()"
+        style="background:#15803d;border:none;color:#fff;padding:6px 12px;border-radius:4px;cursor:pointer;font-family:inherit;font-size:11px;">
+        ↓ Simpan JSON
+      </button>
+    </div>
+    <div class="text-right">
+      <div class="text-xs tracking-widest mb-1" style="color:var(--dim)">TOTAL PAGU</div>
+      <div style="font-family:'IBM Plex Sans',sans-serif;font-size:22px;font-weight:700;color:var(--orange)">Rp 2.000.000.000</div>
+    </div>
+  </div>
+</div>
+
+<!-- TABS -->
+<div style="background:var(--surface);border-bottom:1px solid var(--border);" class="px-6 flex gap-1">
+  <button class="tab-btn active px-5 py-3 text-xs tracking-widest bg-transparent border-0 cursor-pointer" style="font-family:inherit;color:var(--orange)" onclick="switchTab('dashboard',this)">◈ DASHBOARD</button>
+  <button class="tab-btn px-5 py-3 text-xs tracking-widest bg-transparent border-0 cursor-pointer" style="font-family:inherit;color:var(--dim)" onclick="switchTab('input',this)">⊕ INPUT REALISASI</button>
+  <button class="tab-btn px-5 py-3 text-xs tracking-widest bg-transparent border-0 cursor-pointer" style="font-family:inherit;color:var(--dim)" onclick="switchTab('tabel',this)">≡ TABEL DETAIL</button>
+</div>
+
+<div class="px-6 py-5" style="max-width:1400px;margin:0 auto;">
+
+  <!-- FILTER -->
+  <div class="flex gap-2 items-center mb-5">
+    <span class="text-xs tracking-widest" style="color:var(--dim)">FILTER:</span>
+    <button class="filter-btn active px-4 py-1 rounded text-xs tracking-widest cursor-pointer" style="font-family:inherit;background:var(--orange);color:#fff" onclick="setFilter('semua',this)">SEMUA</button>
+    <button class="filter-btn px-4 py-1 rounded text-xs tracking-widest cursor-pointer" style="font-family:inherit;color:var(--dim);background:var(--surface)" onclick="setFilter('operasi',this)">OPERASI</button>
+    <button class="filter-btn px-4 py-1 rounded text-xs tracking-widest cursor-pointer" style="font-family:inherit;color:var(--dim);background:var(--surface)" onclick="setFilter('modal',this)">MODAL</button>
+  </div>
+
+  <!-- DASHBOARD TAB -->
+  <div id="tab-dashboard">
+    <!-- KPI -->
+    <div class="grid grid-cols-4 gap-3 mb-5" id="kpi-grid"></div>
+
+    <!-- CHART -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:6px;" class="p-5 mb-5">
+      <div class="text-xs tracking-widest mb-4" style="color:var(--dim);letter-spacing:.15em">KURVA S — RENCANA vs REALISASI KUMULATIF</div>
+      <div>
+        <canvas id="kurvaChart" height="100"></canvas>
+      </div>
+    </div>
+
+    <!-- PROGRESS PER REKENING -->
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:6px;" class="p-4">
+      <div class="text-xs tracking-widest mb-4" style="color:var(--dim);letter-spacing:.15em">PROGRES SERAPAN PER REKENING</div>
+      <div id="progress-list" class="flex flex-col gap-3"></div>
+    </div>
+  </div>
+
+  <!-- INPUT TAB -->
+  <div id="tab-input" class="hidden">
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:6px;" class="p-5">
+      <div class="text-xs tracking-widest mb-1" style="color:var(--dim)">INPUT REALISASI PER REKENING</div>
+      <div class="mb-4 text-xs" style="color:var(--muted);line-height:1.8">
+        💡 Kamu bisa <span style="color:var(--blue)">input lebih dari 1 kali per bulan</span> — tiap entri tersimpan terpisah.
+        Klik badge <span style="color:var(--orange)">nama bulan</span> untuk melihat detail atau menghapus entri.
+      </div>
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;min-width:950px;" id="input-table">
+          <thead>
+            <tr style="border-bottom:1px solid var(--border);">
+              <th class="text-left p-2" style="font-size:10px;letter-spacing:.12em;color:var(--dim);font-weight:400;min-width:190px;">URAIAN & ENTRI</th>
+              <th class="text-left p-2" style="font-size:10px;letter-spacing:.12em;color:var(--dim);font-weight:400;">JENIS</th>
+              <th class="text-right p-2" style="font-size:10px;letter-spacing:.12em;color:var(--dim);font-weight:400;">PAGU</th>
+              <th class="text-right p-2" style="font-size:10px;letter-spacing:.12em;color:var(--dim);font-weight:400;">TOTAL REAL</th>
+              <th class="p-2" style="font-size:10px;letter-spacing:.12em;color:var(--dim);font-weight:400;">BULAN</th>
+              <th class="p-2" style="font-size:10px;letter-spacing:.12em;color:var(--dim);font-weight:400;">KETERANGAN</th>
+              <th class="p-2" style="font-size:10px;letter-spacing:.12em;color:var(--dim);font-weight:400;">VOL</th>
+              <th class="p-2" style="font-size:10px;letter-spacing:.12em;color:var(--dim);font-weight:400;">HARGA SAT</th>
+              <th class="p-2" style="font-size:10px;letter-spacing:.12em;color:var(--dim);font-weight:400;">ATAU TOTAL</th>
+              <th class="p-2"></th>
+            </tr>
+          </thead>
+          <tbody id="input-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- TABEL TAB -->
+  <div id="tab-tabel" class="hidden">
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:6px;" class="p-5">
+      <div class="text-xs tracking-widest mb-4" style="color:var(--dim)">TABEL DETAIL RENCANA & REALISASI PER BULAN</div>
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;min-width:1400px;font-size:11px;" id="detail-table">
+          <thead id="detail-thead"></thead>
+          <tbody id="detail-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- MODAL KONFIRMASI -->
+<div class="modal-overlay" id="modal-confirm">
+  <div class="modal-box" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:28px;max-width:420px;width:92%;font-family:inherit;">
+    <div style="font-size:14px;font-weight:600;color:#f1f5f9;margin-bottom:12px;">⚠ Bulan ini sudah ada data</div>
+    <div id="confirm-body" style="font-size:12px;color:var(--dim);line-height:1.9;margin-bottom:20px;"></div>
+    <div class="flex gap-3 justify-end">
+      <button onclick="closeConfirm()" style="background:var(--muted);border:none;color:var(--text);padding:8px 18px;border-radius:4px;cursor:pointer;font-family:inherit;font-size:12px;">Batal</button>
+      <button id="confirm-ok" style="background:var(--orange);border:none;color:#fff;padding:8px 18px;border-radius:4px;cursor:pointer;font-family:inherit;font-size:12px;">Ya, Tambahkan</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL DETAIL ENTRI -->
+<div class="modal-overlay" id="modal-detail">
+  <div class="modal-box" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:24px;max-width:600px;width:95%;font-family:inherit;">
+    <div class="flex justify-between items-start mb-4">
+      <div>
+        <div id="detail-modal-title" style="font-size:13px;font-weight:600;color:#f1f5f9;"></div>
+        <div id="detail-modal-sub" style="font-size:11px;color:var(--orange);margin-top:2px;"></div>
+      </div>
+      <button onclick="closeDetail()" style="background:none;border:none;color:var(--dim);cursor:pointer;font-size:20px;line-height:1;">✕</button>
+    </div>
+    <div id="detail-modal-body"></div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+// DATA
+// ═══════════════════════════════════════════════════════════
+const BULAN = ["Jan","Feb","Mar","Apr","Mei","Jun","Jul","Agu","Sep","Okt","Nov","Des"];
+
+function buildItem(id, rek, uraian, jenis, pagu, rencana, initReal=[]) {
+  const entries = Array.from({length:12}, ()=>[]);
+  initReal.forEach((val,idx)=>{
+    if(val>0) entries[idx].push({id:`init_${id}_${idx}`, keterangan:"Data awal", vol:0, hs:0, jumlah:val});
+  });
+  return {id, rek, uraian, jenis, pagu, rencana, entries};
+}
+
+let items = [
+  buildItem("01","5.1.02.01.001.000 01","Bahan Bangunan & Konstruksi","operasi",16900600,[0,0,3166410,0,5025000,1750000,0,3166410,0,3034780,0,758000],[0,0,0]),
+  buildItem("02","5.1.02.01.001.000 02","Bahan-Bahan Kimia","operasi",1410000,[1410000,0,0,0,0,0,0,0,0,0,0,0],[650000,0,0]),
+  buildItem("04","5.1.02.01.001.000 04","Bahan Bakar & Pelumas","operasi",686211400,[70480000,70480000,56570000,70480000,70480000,70480000,70480000,70480000,123037400,0,0,13244000],[52452000,52570000,44604500]),
+  buildItem("08","5.1.02.01.001.000 08","Bibit Tanaman & Media Tanam","operasi",102985000,[0,0,11935000,0,0,0,0,0,0,0,0,91050000],[0,0,11580000]),
+  buildItem("12","5.1.02.01.001.000 12","Bahan-Bahan Lainnya","operasi",6662400,[932400,0,6662400,0,0,0,0,0,0,0,0,932400],[0,0,5430000]),
+  buildItem("13","5.1.02.01.001.000 13","Suku Cadang Alat Angkutan","operasi",18720000,[0,0,0,0,0,18720000,0,0,0,0,0,0],[]),
+  buildItem("14","5.1.02.01.001.000 14","Suku Cadang Alat Besar","operasi",35613600,[0,0,0,0,0,0,0,0,35613600,0,0,0],[]),
+  buildItem("23","5.1.02.01.001.000 23","Suku Cadang Lainnya","operasi",12664000,[0,0,12664000,0,0,0,0,0,0,0,0,0],[]),
+  buildItem("24","5.1.02.01.001.000 24","ATK - Alat Tulis Kantor","operasi",14728200,[0,0,0,14728200,0,0,0,0,0,0,0,0],[]),
+  buildItem("25","5.1.02.01.001.000 25","ATK - Kertas dan Cover","operasi",5555000,[0,0,0,5555000,0,0,0,0,0,0,0,0],[]),
+  buildItem("26","5.1.02.01.001.000 26","ATK - Bahan Cetak (Fotokopi)","operasi",18264000,[1660220,1660220,1660220,1660220,1660220,1660220,1660220,1660220,1660220,1660220,1661800,0],[1500000,1750000,1469000]),
+  buildItem("27","5.1.02.01.001.000 27","ATK - Benda Pos (Materai)","operasi",2600000,[0,0,1300000,0,0,0,1300000,0,0,0,0,0],[]),
+  buildItem("29","5.1.02.01.001.000 29","ATK - Bahan Komputer","operasi",5246800,[0,0,0,5246800,0,0,0,0,0,0,0,0],[]),
+  buildItem("30","5.1.02.01.001.000 30","ATK - Perabot Kantor (Sapu)","operasi",6560000,[0,0,6560000,0,0,0,0,0,0,0,0,0],[]),
+  buildItem("32","5.1.02.01.001.000 32","Perlengkapan Dinas (Sarung Tangan)","operasi",1500000,[0,0,1500000,0,1500000,0,0,0,0,0,0,0],[]),
+  buildItem("36","5.1.02.01.001.000 36","Alat Kebersihan Taman","operasi",23700000,[0,0,11330000,0,12370000,0,0,0,0,0,0,0],[0,0,3800000]),
+  buildItem("45","5.1.02.01.001.000 45","Natura & Pakan (Pestisida, Pupuk)","operasi",27500000,[2000000,0,0,0,0,0,0,0,0,0,0,25500000],[]),
+  buildItem("52","5.1.02.01.001.000 52","Makan Minum Rapat","operasi",29700000,[2700000,2700000,2700000,2700000,2700000,2700000,2700000,2700000,2700000,2700000,2700000,0],[3150000,0,0]),
+  buildItem("60","5.1.02.02.001.000 60","Tagihan Air (PDAM)","operasi",36000000,[3000000,3000000,3000000,3000000,3000000,3000000,3000000,3000000,3000000,3000000,3000000,3000000],[467700,473600,452950]),
+  buildItem("61","5.1.02.02.001.000 61","Tagihan Listrik (PLN)","operasi",12000000,[1000000,1000000,1000000,1000000,1000000,1000000,1000000,1000000,1000000,1000000,1000000,1000000],[1014000,1014000,1014000]),
+  buildItem("71","5.1.02.02.001.000 71","Belanja Lembur Pegawai","operasi",113255000,[10285000,10285000,10285000,10285000,10285000,10285000,10285000,10285000,10285000,10285000,10405000,0],[16526000,11449000,0]),
+  buildItem("pd01","5.1.02.04.001.000 01","Perjalanan Dinas Luar Daerah","operasi",74330000,[0,0,0,0,0,38990000,0,0,0,35340000,0,0],[]),
+  buildItem("pd03","5.1.02.04.001.000 03","Perjalanan Dinas Dalam Kota","operasi",119040000,[10880000,10880000,10880000,10880000,10880000,10880000,10880000,10880000,10880000,10880000,10240000,0],[12160000,10080000,8960000]),
+  buildItem("jk05","5.1.02.02.008.000 05","Jasa Konsultansi Perencanaan","operasi",32000000,[0,0,0,32000000,0,0,0,0,0,0,0,0],[]),
+  buildItem("jk18","5.1.02.02.008.000 18","Jasa Konsultansi Pengawasan","operasi",20000000,[0,0,0,20000000,0,0,0,0,0,0,0,0],[]),
+  buildItem("m03","5.2.02.02.001.000 03","Modal Kendaraan Angkutan Barang","modal",155560000,[30090000,0,0,30090000,0,0,70090000,0,0,25290000,0,0],[0,21294000,0]),
+  buildItem("m05","5.2.02.02.001.000 05","Modal Kendaraan Roda Tiga","modal",21294000,[5323500,0,0,5323500,0,0,5323500,0,0,5323500,0,0],[]),
+  buildItem("m36","5.2.03.01.001.000 36","Modal Taman (Rehabilitasi)","modal",400000000,[0,0,0,0,0,400000000,0,0,0,0,0,0],[]),
+];
+
+// ═══════════════════════════════════════════════════════════
+// HELPERS
+// ═══════════════════════════════════════════════════════════
+const fmt      = n => new Intl.NumberFormat("id-ID",{style:"currency",currency:"IDR",maximumFractionDigits:0}).format(n);
+const fmtS     = n => {
+  if(Math.abs(n)>=1e9) return (n/1e9).toFixed(2)+" M";
+  if(Math.abs(n)>=1e6) return (n/1e6).toFixed(1)+" jt";
+  if(Math.abs(n)>=1e3) return (n/1e3).toFixed(0)+" rb";
+  return String(n);
+};
+const pct      = (a,b) => b===0?0:(a/b)*100;
+const uid      = () => Date.now()+""+Math.random();
+const sumE     = (entries,idx) => entries[idx].reduce((s,e)=>s+e.jumlah,0);
+const sumAll   = entries => entries.reduce((s,arr)=>s+arr.reduce((ss,e)=>ss+e.jumlah,0),0);
+const barClr   = p => p>=90?"#22c55e":p>=60?"#eab308":p>=30?"#f97316":"#ef4444";
+
+// state
+let currentFilter = "semua";
+let chartInstance  = null;
+let pendingEntry   = null;
+
+function getFiltered() {
+  return currentFilter==="semua" ? items : items.filter(i=>i.jenis===currentFilter);
+}
+
+// ═══════════════════════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════════════════════
+function showToast(msg, color="#15803d") {
+  const t = document.getElementById("toast");
+  t.textContent = msg;
+  t.style.background = color;
+  t.classList.add("show");
+  setTimeout(()=>t.classList.remove("show"), 3000);
+}
+
+// ═══════════════════════════════════════════════════════════
+// TAB SWITCHING
+// ═══════════════════════════════════════════════════════════
+function switchTab(name, btn) {
+  ["dashboard","input","tabel"].forEach(t=>{
+    document.getElementById("tab-"+t).classList.toggle("hidden", t!==name);
+  });
+  document.querySelectorAll(".tab-btn").forEach(b=>{
+    b.classList.remove("active");
+    b.style.color = "var(--dim)";
+  });
+  btn.classList.add("active");
+  btn.style.color = "var(--orange)";
+  if(name==="tabel") renderTabel();
+  if(name==="input") renderInput();
+}
+
+// ═══════════════════════════════════════════════════════════
+// FILTER
+// ═══════════════════════════════════════════════════════════
+function setFilter(val, btn) {
+  currentFilter = val;
+  document.querySelectorAll(".filter-btn").forEach(b=>{
+    b.classList.remove("active");
+    b.style.background = "var(--surface)";
+    b.style.color = "var(--dim)";
+    b.style.borderColor = "var(--border)";
+  });
+  btn.classList.add("active");
+  btn.style.background = "var(--orange)";
+  btn.style.color = "#fff";
+  btn.style.borderColor = "var(--orange)";
+  renderDashboard();
+  renderInput();
+  renderTabel();
+}
+
+// ═══════════════════════════════════════════════════════════
+// DASHBOARD
+// ═══════════════════════════════════════════════════════════
+function renderDashboard() {
+  const filtered = getFiltered();
+  const totalPagu   = filtered.reduce((s,i)=>s+i.pagu,0);
+  const totalRnc3   = filtered.reduce((s,i)=>s+i.rencana.slice(0,3).reduce((a,b)=>a+b,0),0);
+  const totalReal   = filtered.reduce((s,i)=>s+sumAll(i.entries),0);
+  const dev         = pct(totalReal,totalPagu)-pct(totalRnc3,totalPagu);
+
+  // KPI
+  const kpis = [
+    {label:"TOTAL PAGU (FILTER)", val:fmt(totalPagu),          sub:null,                                  accent:"#3b82f6"},
+    {label:"RENCANA S/D MAR",     val:fmt(totalRnc3),           sub:pct(totalRnc3,totalPagu).toFixed(1)+"%", accent:"#818cf8"},
+    {label:"REALISASI KUMULATIF", val:fmt(totalReal),           sub:pct(totalReal,totalPagu).toFixed(2)+"%", accent:"#22c55e"},
+    {label:"DEVIASI",             val:dev.toFixed(2)+"%",       sub:dev<0?"⚠ Di bawah rencana":"✓ On track", accent:dev<0?"#ef4444":"#22c55e"},
+  ];
+  document.getElementById("kpi-grid").innerHTML = kpis.map(k=>`
+    <div class="kpi-card rounded-md p-4" style="background:var(--surface);border:1px solid var(--border);border-top-color:${k.accent}">
+      <div class="text-xs tracking-widest mb-2" style="color:var(--dim);letter-spacing:.12em">${k.label}</div>
+      <div style="font-family:'IBM Plex Sans',sans-serif;font-size:17px;font-weight:700;color:${k.accent}">${k.val}</div>
+      ${k.sub?`<div class="text-xs mt-1" style="color:var(--dim)">${k.sub}</div>`:""}
+    </div>
+  `).join("");
+
+  // Chart data
+  let rncKum=0, relKum=0;
+  const labels=[], rncBulan=[], relBulan=[], rncKumArr=[], relKumArr=[];
+  BULAN.forEach((b,idx)=>{
+    const rB = filtered.reduce((s,i)=>s+(i.rencana[idx]||0),0);
+    const eB = filtered.reduce((s,i)=>s+sumE(i.entries,idx),0);
+    rncKum+=rB; relKum+=eB;
+    labels.push(b); rncBulan.push(rB); relBulan.push(eB);
+    rncKumArr.push(rncKum); relKumArr.push(relKum);
+  });
+
+  if(chartInstance) chartInstance.destroy();
+  const ctx = document.getElementById("kurvaChart").getContext("2d");
+  chartInstance = new Chart(ctx, {
+    data: {
+      labels,
+      datasets: [
+        { type:"bar",  label:"Rencana Bulanan",   data:rncBulan,   backgroundColor:"#f97316aa", borderColor:"#f97316", borderWidth:1, yAxisID:"y" },
+        { type:"bar",  label:"Realisasi Bulanan",  data:relBulan,   backgroundColor:"#3b82f6aa", borderColor:"#3b82f6", borderWidth:1, yAxisID:"y" },
+        { type:"line", label:"Kumulatif Rencana",  data:rncKumArr,  borderColor:"#818cf8", backgroundColor:"transparent", borderWidth:2, borderDash:[6,3], pointRadius:3, pointBackgroundColor:"#818cf8", yAxisID:"y2", tension:.3 },
+        { type:"line", label:"Kumulatif Realisasi",data:relKumArr,  borderColor:"#22c55e", backgroundColor:"transparent", borderWidth:2.5, pointRadius:4, pointBackgroundColor:"#22c55e", yAxisID:"y2", tension:.3 },
+      ]
+    },
+    options: {
+      responsive:true, interaction:{mode:"index",intersect:false},
+      plugins:{ legend:{ labels:{ color:"#5a6f96", font:{family:"IBM Plex Mono",size:11}, boxWidth:12 } },
+        tooltip:{ backgroundColor:"#111625", borderColor:"#1e2740", borderWidth:1, titleColor:"#5a6f96", bodyColor:"#c8d6f0", titleFont:{family:"IBM Plex Mono",size:11}, bodyFont:{family:"IBM Plex Mono",size:11},
+          callbacks:{ label: ctx => `  ${ctx.dataset.label}: ${fmt(ctx.parsed.y)}` } } },
+      scales:{
+        x:{ ticks:{color:"#5a6f96",font:{family:"IBM Plex Mono",size:11}}, grid:{color:"#1e2740"} },
+        y:{ ticks:{color:"#5a6f96",font:{family:"IBM Plex Mono",size:10},callback:v=>fmtS(v)}, grid:{color:"#1e2740"}, position:"left" },
+        y2:{ ticks:{color:"#5a6f96",font:{family:"IBM Plex Mono",size:10},callback:v=>`${((v/totalPagu)*100).toFixed(0)}%`}, grid:{display:false}, position:"right" },
+      }
+    }
+  });
+
+  // Progress list
+  document.getElementById("progress-list").innerHTML = filtered.map(item=>{
+    const real=sumAll(item.entries), p=Math.min(100,pct(real,item.pagu)), c=barClr(p);
+    return `
+      <div style="display:grid;grid-template-columns:1fr 130px 70px;gap:14px;align-items:center;">
+        <div>
+          <div class="text-xs mb-1" style="color:var(--text)">${item.uraian}</div>
+          <div class="progress-bar"><div class="progress-fill" style="width:${p}%;background:${c};"></div></div>
+        </div>
+        <div class="text-right text-xs" style="color:var(--dim)">${fmt(real)}</div>
+        <div class="text-right text-xs font-medium" style="color:${c}">${p.toFixed(1)}%</div>
+      </div>`;
+  }).join("");
+}
+
+// ═══════════════════════════════════════════════════════════
+// INPUT TABLE
+// ═══════════════════════════════════════════════════════════
+function renderInput() {
+  const filtered = getFiltered();
+  document.getElementById("input-tbody").innerHTML = filtered.map(item=>{
+    const totalR = sumAll(item.entries);
+    const badges = item.entries.map((arr,idx)=>arr.length>0
+      ? `<span class="badge" style="background:#172030;border-color:#3b82f6;color:#60a5fa;"
+           onclick="openDetail('${item.id}',${idx})">${BULAN[idx]} · ${arr.length}</span>`
+      : "").join("");
+
+    return `<tr class="tr-hover" style="border-bottom:1px solid var(--border);">
+      <td style="padding:9px 8px;min-width:190px;">
+        <div class="text-xs mb-1" style="color:var(--text)">${item.uraian}</div>
+        <div style="font-size:10px;color:var(--muted);margin-bottom:5px;">${item.rek}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px;">${badges}</div>
+      </td>
+      <td style="padding:9px 8px;">
+        <span class="badge" style="background:${item.jenis==="modal"?"#1c1a3a":"#1a2e1a"};border-color:${item.jenis==="modal"?"#818cf8":"#4ade80"};color:${item.jenis==="modal"?"#818cf8":"#4ade80"};">
+          ${item.jenis==="modal"?"MODAL":"OPS"}
+        </span>
+      </td>
+      <td style="padding:9px 8px;text-align:right;color:var(--dim);white-space:nowrap;font-size:11px;">${fmt(item.pagu)}</td>
+      <td style="padding:9px 8px;text-align:right;color:${totalR>0?"#22c55e":"var(--muted)"};white-space:nowrap;font-size:11px;">${fmt(totalR)}</td>
+      <td style="padding:9px 6px;">
+        <select id="sel-bulan-${item.id}" style="width:68px;">
+          ${BULAN.map((b,i)=>`<option value="${i}"${i===3?" selected":""}>${b}</option>`).join("")}
+        </select>
+        <div id="warn-${item.id}" style="font-size:10px;color:#f97316;margin-top:3px;display:none;"></div>
+      </td>
+      <td style="padding:9px 6px;"><input id="ket-${item.id}" placeholder="keterangan" style="width:130px;"/></td>
+      <td style="padding:9px 6px;"><input type="number" id="vol-${item.id}" placeholder="vol" style="width:72px;" oninput="calcPreview('${item.id}')"/></td>
+      <td style="padding:9px 6px;"><input type="number" id="hs-${item.id}" placeholder="harga/sat" style="width:100px;" oninput="calcPreview('${item.id}')"/></td>
+      <td style="padding:9px 6px;"><input type="number" id="jml-${item.id}" placeholder="atau langsung" style="width:110px;"/></td>
+      <td style="padding:9px 6px;">
+        <button onclick="handleSimpan('${item.id}')"
+          style="background:var(--orange);border:none;color:#fff;padding:6px 12px;border-radius:4px;cursor:pointer;font-family:inherit;font-size:11px;white-space:nowrap;">
+          + SIMPAN
+        </button>
+      </td>
+    </tr>`;
+  }).join("");
+
+  // attach bulan change listener
+  filtered.forEach(item=>{
+    const sel = document.getElementById("sel-bulan-"+item.id);
+    if(sel) sel.addEventListener("change", ()=>updateWarn(item.id));
+    updateWarn(item.id);
+  });
+}
+
+function updateWarn(itemId) {
+  const item = items.find(i=>i.id===itemId); if(!item) return;
+  const sel  = document.getElementById("sel-bulan-"+itemId); if(!sel) return;
+  const bi   = parseInt(sel.value);
+  const warn = document.getElementById("warn-"+itemId);
+  const cnt  = item.entries[bi].length;
+  const tot  = sumE(item.entries,bi);
+  if(cnt>0 && warn){ warn.textContent=`⚠ ${cnt} entri · ${fmtS(tot)}`; warn.style.display="block"; }
+  else if(warn){ warn.style.display="none"; }
+}
+
+function calcPreview(itemId) {
+  const vol = parseFloat(document.getElementById("vol-"+itemId)?.value)||0;
+  const hs  = parseFloat(document.getElementById("hs-"+itemId)?.value)||0;
+  if(vol>0&&hs>0) document.getElementById("jml-"+itemId).value = vol*hs;
+}
+
+function handleSimpan(itemId) {
+  const item = items.find(i=>i.id===itemId); if(!item) return;
+  const bi   = parseInt(document.getElementById("sel-bulan-"+itemId).value);
+  const vol  = parseFloat(document.getElementById("vol-"+itemId).value)||0;
+  const hs   = parseFloat(document.getElementById("hs-"+itemId).value)||0;
+  const jml  = vol>0&&hs>0 ? vol*hs : parseFloat(document.getElementById("jml-"+itemId).value)||0;
+  const ket  = document.getElementById("ket-"+itemId).value||"Tanpa keterangan";
+  if(jml<=0){ showToast("⚠ Isi jumlah atau vol × harga satuan","#92400e"); return; }
+
+  const entry    = {id:uid(), keterangan:ket, vol, hs, jumlah:jml};
+  const existing = sumE(item.entries,bi);
+  const count    = item.entries[bi].length;
+
+  if(count>0){
+    pendingEntry = {itemId, bi, entry};
+    document.getElementById("confirm-body").innerHTML =
+      `<b style="color:#f1f5f9">${item.uraian}</b> — <b style="color:#f97316">${BULAN[bi]}</b><br>
+       Sudah ada <b style="color:#f1f5f9">${count} entri</b>, total <b style="color:#22c55e">${fmt(existing)}</b>.<br><br>
+       Entri baru (<b style="color:#3b82f6">${fmt(jml)}</b>) akan <b>ditambahkan</b>, bukan menimpa.<br>
+       Total bulan ini menjadi <b style="color:#22c55e">${fmt(existing+jml)}</b>.`;
+    document.getElementById("confirm-ok").onclick = doSave;
+    document.getElementById("modal-confirm").classList.add("open");
+  } else {
+    doSaveEntry(itemId, bi, entry);
+  }
+}
+
+function doSave() {
+  if(!pendingEntry) return;
+  doSaveEntry(pendingEntry.itemId, pendingEntry.bi, pendingEntry.entry);
+  closeConfirm();
+}
+
+function doSaveEntry(itemId, bi, entry) {
+  // auto-save setelah setiap perubahan
+  const item = items.find(i=>i.id===itemId); if(!item) return;
+  item.entries[bi].push(entry);
+  // clear form
+  ["ket","vol","hs","jml"].forEach(f=>{
+    const el=document.getElementById(f+"-"+itemId); if(el) el.value="";
+  });
+  saveData();
+  showToast("✓ Entri berhasil disimpan");
+  renderDashboard();
+  renderInput();
+  if(!document.getElementById("tab-tabel").classList.contains("hidden")) renderTabel();
+}
+
+function closeConfirm() {
+  document.getElementById("modal-confirm").classList.remove("open");
+  pendingEntry = null;
+}
+
+// ═══════════════════════════════════════════════════════════
+// DETAIL MODAL
+// ═══════════════════════════════════════════════════════════
+let currentDetail = null;
+function openDetail(itemId, bulanIdx) {
+  currentDetail = {itemId, bulanIdx};
+  renderDetailModal();
+  document.getElementById("modal-detail").classList.add("open");
+}
+function closeDetail() {
+  document.getElementById("modal-detail").classList.remove("open");
+  currentDetail = null;
+}
+function renderDetailModal() {
+  if(!currentDetail) return;
+  const {itemId, bulanIdx} = currentDetail;
+  const item = items.find(i=>i.id===itemId); if(!item) return;
+  const entries = item.entries[bulanIdx];
+  const total   = entries.reduce((s,e)=>s+e.jumlah,0);
+
+  document.getElementById("detail-modal-title").textContent = item.uraian;
+  document.getElementById("detail-modal-sub").textContent   = `Detail Entri — ${BULAN[bulanIdx]}`;
+
+  if(entries.length===0){
+    document.getElementById("detail-modal-body").innerHTML =
+      `<div style="text-align:center;padding:24px;color:var(--dim);font-size:12px;">Belum ada entri.</div>`;
+    return;
+  }
+
+  document.getElementById("detail-modal-body").innerHTML = `
+    <table style="width:100%;border-collapse:collapse;font-size:12px;">
+      <thead>
+        <tr style="border-bottom:1px solid var(--border);">
+          ${["#","Keterangan","Volume","Harga Sat","Jumlah",""].map((h,i)=>`
+            <th style="padding:6px 8px;text-align:${i>=2&&i<5?"right":"left"};color:var(--dim);font-weight:400;font-size:10px;letter-spacing:.1em;">${h}</th>`).join("")}
+        </tr>
+      </thead>
+      <tbody>
+        ${entries.map((e,i)=>`
+          <tr style="border-bottom:1px solid var(--border);">
+            <td style="padding:8px;color:var(--muted);">${i+1}</td>
+            <td style="padding:8px;color:var(--text);">${e.keterangan}</td>
+            <td style="padding:8px;text-align:right;color:var(--dim);">${e.vol>0?e.vol.toLocaleString("id-ID"):"—"}</td>
+            <td style="padding:8px;text-align:right;color:var(--dim);">${e.hs>0?fmt(e.hs):"—"}</td>
+            <td style="padding:8px;text-align:right;color:#22c55e;font-weight:500;">${fmt(e.jumlah)}</td>
+            <td style="padding:8px;">
+              <button onclick="deleteEntry('${itemId}',${bulanIdx},'${e.id}')"
+                style="background:#450a0a;border:1px solid #7f1d1d;color:#fca5a5;padding:3px 10px;border-radius:3px;cursor:pointer;font-family:inherit;font-size:11px;">
+                Hapus
+              </button>
+            </td>
+          </tr>`).join("")}
+      </tbody>
+      <tfoot>
+        <tr style="border-top:2px solid var(--border);">
+          <td colspan="4" style="padding:8px;color:var(--dim);font-size:11px;letter-spacing:.1em;">TOTAL ${BULAN[bulanIdx]}</td>
+          <td style="padding:8px;text-align:right;color:#22c55e;font-weight:700;font-size:13px;">${fmt(total)}</td>
+          <td></td>
+        </tr>
+      </tfoot>
+    </table>`;
+}
+
+function deleteEntry(itemId, bulanIdx, entryId) {
+  const item = items.find(i=>i.id===itemId); if(!item) return;
+  item.entries[bulanIdx] = item.entries[bulanIdx].filter(e=>e.id!==entryId);
+  saveData();
+  showToast("🗑 Entri dihapus","#92400e");
+  renderDetailModal();
+  renderDashboard();
+  renderInput();
+  if(!document.getElementById("tab-tabel").classList.contains("hidden")) renderTabel();
+}
+
+// ═══════════════════════════════════════════════════════════
+// TABEL DETAIL
+// ═══════════════════════════════════════════════════════════
+function renderTabel() {
+  const filtered = getFiltered();
+  const totalPagu = filtered.reduce((s,i)=>s+i.pagu,0);
+  const totalReal = filtered.reduce((s,i)=>s+sumAll(i.entries),0);
+
+  // THEAD
+  document.getElementById("detail-thead").innerHTML = `
+    <tr style="border-bottom:2px solid var(--border);background:var(--bg);">
+      <th style="padding:8px 10px;text-align:left;color:var(--dim);font-weight:400;letter-spacing:.1em;min-width:180px;position:sticky;left:0;background:var(--bg);">URAIAN</th>
+      <th style="padding:8px 10px;text-align:right;color:var(--dim);font-weight:400;width:95px;">PAGU</th>
+      ${BULAN.map(b=>`<th colspan="2" style="padding:6px 4px;text-align:center;color:var(--dim);font-weight:400;letter-spacing:.1em;border-left:1px solid var(--border);">${b}</th>`).join("")}
+      <th style="padding:8px 10px;text-align:right;color:var(--dim);font-weight:400;">TOTAL</th>
+      <th style="padding:8px 10px;text-align:right;color:var(--dim);font-weight:400;">%</th>
+    </tr>
+    <tr style="border-bottom:1px solid var(--border);background:var(--bg);">
+      <th style="position:sticky;left:0;background:var(--bg);"></th><th></th>
+      ${BULAN.map(b=>`
+        <th style="padding:4px 3px;text-align:right;color:var(--muted);font-weight:400;font-size:10px;border-left:1px solid var(--border);">RNC</th>
+        <th style="padding:4px 3px;text-align:right;color:var(--muted);font-weight:400;font-size:10px;">REL</th>`).join("")}
+      <th></th><th></th>
+    </tr>`;
+
+  // TBODY
+  const rows = filtered.map((item,ri)=>{
+    const rt = sumAll(item.entries), p = pct(rt,item.pagu);
+    const cells = BULAN.map((_,idx)=>{
+      const r=item.rencana[idx]||0, e=sumE(item.entries,idx), cnt=item.entries[idx].length;
+      return `
+        <td style="padding:7px 4px;text-align:right;color:var(--muted);border-left:1px solid var(--border);white-space:nowrap;">${r>0?fmtS(r):"—"}</td>
+        <td style="padding:7px 4px;text-align:right;white-space:nowrap;">
+          ${cnt>0
+            ? `<span class="badge" style="background:#0d2d1a;border-color:#22c55e;color:#4ade80;cursor:pointer;" onclick="openDetail('${item.id}',${idx})">${fmtS(e)}${cnt>1?` (${cnt})`:""}</span>`
+            : `<span style="color:var(--border)">—</span>`}
+        </td>`;
+    }).join("");
+    return `
+      <tr class="tr-hover" style="border-bottom:1px solid var(--border);background:${ri%2===0?"var(--surface)":"#0e1220"};">
+        <td style="padding:7px 10px;color:var(--text);position:sticky;left:0;background:${ri%2===0?"var(--surface)":"#0e1220"};">
+          <div style="font-weight:500;font-size:11px;">${item.uraian}</div>
+          <div style="font-size:10px;color:var(--muted);">${item.rek}</div>
+        </td>
+        <td style="padding:7px 10px;text-align:right;color:var(--dim);white-space:nowrap;">${fmtS(item.pagu)}</td>
+        ${cells}
+        <td style="padding:7px 10px;text-align:right;color:${rt>0?"#22c55e":"var(--muted)"};white-space:nowrap;">${fmtS(rt)}</td>
+        <td style="padding:7px 10px;text-align:right;color:${barClr(p)};font-weight:500;">${p.toFixed(1)}%</td>
+      </tr>`;
+  }).join("");
+
+  // TOTAL ROW
+  const totalCells = BULAN.map((_,idx)=>{
+    const rT=filtered.reduce((s,i)=>s+(i.rencana[idx]||0),0);
+    const eT=filtered.reduce((s,i)=>s+sumE(i.entries,idx),0);
+    return `
+      <td style="padding:10px 4px;text-align:right;color:#818cf8;border-left:1px solid var(--border);white-space:nowrap;">${rT>0?fmtS(rT):"—"}</td>
+      <td style="padding:10px 4px;text-align:right;color:#22c55e;white-space:nowrap;">${eT>0?fmtS(eT):"—"}</td>`;
+  }).join("");
+
+  document.getElementById("detail-tbody").innerHTML = rows + `
+    <tr style="border-top:2px solid var(--border);background:var(--bg);font-weight:600;">
+      <td style="padding:10px;color:#f1f5f9;position:sticky;left:0;background:var(--bg);">TOTAL</td>
+      <td style="padding:10px;text-align:right;color:#3b82f6;white-space:nowrap;">${fmtS(totalPagu)}</td>
+      ${totalCells}
+      <td style="padding:10px;text-align:right;color:#22c55e;white-space:nowrap;">${fmtS(totalReal)}</td>
+      <td style="padding:10px;text-align:right;color:${barClr(pct(totalReal,totalPagu))};">${pct(totalReal,totalPagu).toFixed(1)}%</td>
+    </tr>`;
+}
+
+// ═══════════════════════════════════════════════════════════
+// LOCALSTORAGE
+// ═══════════════════════════════════════════════════════════
+const LS_KEY = "kurva_s_2026";
+
+function saveData() {
+  try { localStorage.setItem(LS_KEY, JSON.stringify(items)); }
+  catch(e) { console.warn("localStorage error:", e); }
+}
+
+function loadData() {
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (!raw) return false;
+    const loaded = JSON.parse(raw);
+    if (!Array.isArray(loaded) || !loaded.length) return false;
+    items = loaded.map(i => ({...i, entries: i.entries || Array.from({length:12},()=>[])}));
+    return true;
+  } catch(e) { return false; }
+}
+
+// ═══════════════════════════════════════════════════════════
+// EXPORT / IMPORT JSON
+// ═══════════════════════════════════════════════════════════
+function exportJSON() {
+  const blob = new Blob([JSON.stringify({version:1,exportedAt:new Date().toISOString(),items},null,2)],{type:"application/json"});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement("a");
+  a.href = url;
+  a.download = "kurva_s_backup_" + new Date().toISOString().slice(0,10) + ".json";
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast("✓ Data berhasil diekspor");
+}
+
+function triggerImportJSON() {
+  document.getElementById("json-file-input").click();
+}
+
+function importJSON(e) {
+  const file = e.target.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    try {
+      const data = JSON.parse(ev.target.result);
+      const loaded = data.items || data;
+      if(!Array.isArray(loaded)) throw new Error("Format tidak valid");
+      items = loaded.map(i=>({...i, entries:i.entries||Array.from({length:12},()=>[])}));
+      saveData();
+      renderDashboard(); renderInput();
+      if(!document.getElementById("tab-tabel").classList.contains("hidden")) renderTabel();
+      showToast("✓ " + items.length + " rekening berhasil dimuat");
+    } catch(err) { showToast("✗ File tidak valid: " + err.message, "#991b1b"); }
+  };
+  reader.readAsText(file);
+  e.target.value = "";
+}
+
+// ═══════════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════════
+const wasLoaded = loadData();
+renderDashboard();
+renderInput();
+if(wasLoaded) setTimeout(()=>showToast("✓ Data tersimpan berhasil dimuat"), 300);
+</script>
+</body>
+</html>
