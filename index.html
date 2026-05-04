@@ -65,16 +65,79 @@
   .toast.show { opacity: 1; transform: translateY(0); }
 
   @media print {
-    body { background: #fff !important; color: #000 !important; }
-    .tab-btn, .filter-btn, button { display: none !important; }
-    #tab-input, #tab-tabel { display: none !important; }
-    #tab-dashboard { display: block !important; }
-    canvas { max-width: 100% !important; }
-    #progress-list { page-break-before: always; }
-    .kpi-grid { page-break-inside: avoid; }
-    #kurvaChart { page-break-after: avoid; }
-    * { box-shadow: none !important; border-color: #ccc !important; }
+  /* Reset warna ke putih bersih */
+  * {
+    background: #fff !important;
+    color: #000 !important;
+    border-color: #ddd !important;
+    box-shadow: none !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
   }
+
+  /* Sembunyikan elemen yang tidak perlu dicetak */
+  .tab-btn, .filter-btn, button,
+  #tab-input, #tab-tabel,
+  .modal-overlay, .toast,
+  nav, header > div > div:first-child > div:last-child { 
+    display: none !important; 
+  }
+
+  /* Paksa dashboard tetap tampil */
+  #tab-dashboard { display: block !important; }
+  body { font-family: 'IBM Plex Mono', monospace; font-size: 11px; }
+
+  /* HEADER CETAK — bersih dan formal */
+  header, [style*="background:var(--surface)"] {
+    background: #fff !important;
+    border-bottom: 2px solid #000 !important;
+    padding: 12px 0 !important;
+  }
+
+  /* Sembunyikan tombol di header, tampilkan hanya teks */
+  div[style*="gap:8px"] { display: none !important; }
+
+  /* KPI cards — border tipis hitam */
+  .kpi-card, #kpi-grid > div {
+    border: 1px solid #ccc !important;
+    border-top: 3px solid #000 !important;
+    page-break-inside: avoid;
+  }
+
+  /* Nilai KPI tetap terbaca */
+  #kpi-grid [style*="font-size:17px"] { color: #000 !important; font-weight: 700 !important; }
+  #kpi-grid [style*="color:var(--dim)"] { color: #555 !important; }
+
+  /* HALAMAN 1: Header + KPI + Grafik jadi satu */
+  #kpi-grid { page-break-inside: avoid; margin-bottom: 16px; }
+  #kpi-grid + div { page-break-inside: avoid; } /* chart container */
+
+  /* HALAMAN 2: Progres rekening mulai halaman baru */
+  #kpi-grid + div + div { page-break-before: always; }
+
+  /* Canvas grafik */
+  canvas { 
+    max-width: 100% !important; 
+    max-height: 280px !important;
+  }
+
+  /* Progress bar — tetap berwarna saat dicetak */
+  .progress-fill[style*="background:#22c55e"] { background: #16a34a !important; }
+  .progress-fill[style*="background:#eab308"] { background: #ca8a04 !important; }
+  .progress-fill[style*="background:#f97316"] { background: #ea580c !important; }
+  .progress-fill[style*="background:#ef4444"] { background: #dc2626 !important; }
+  .progress-bar { background: #e5e7eb !important; }
+
+  /* Teks progress rekening */
+  #progress-list [style*="color:var(--text)"] { color: #111 !important; }
+  #progress-list [style*="color:var(--dim)"]  { color: #555 !important; }
+
+  /* Margin halaman */
+  @page {
+    margin: 1.5cm 1.5cm 1.5cm 1.5cm;
+    size: A4 landscape;
+  }
+}
   .progress-bar { height: 4px; background: var(--border); border-radius: 3px; overflow: hidden; }
   .progress-fill { height: 100%; border-radius: 3px; transition: width .6s ease; }
 
