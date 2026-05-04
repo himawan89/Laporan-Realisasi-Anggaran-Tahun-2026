@@ -65,78 +65,79 @@
   .toast.show { opacity: 1; transform: translateY(0); }
 
   @media print {
-  /* Reset warna ke putih bersih */
-  * {
+  @media print {
+  /* Sembunyikan semua dulu */
+  * { box-shadow: none !important; }
+
+  /* Elemen yang disembunyikan saat cetak */
+  header, nav, .tab-btn, .filter-btn,
+  #tab-input, #tab-tabel,
+  .modal-overlay, .toast,
+  .flex.gap-2.items-center { display: none !important; }
+
+  /* Tampilkan header khusus cetak */
+  #print-header { display: block !important; }
+
+  /* Dashboard tetap tampil */
+  #tab-dashboard { display: block !important; }
+
+  /* Putih bersih */
+  body, html {
     background: #fff !important;
     color: #000 !important;
-    border-color: #ddd !important;
-    box-shadow: none !important;
+    font-size: 11px;
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
 
-  /* Sembunyikan elemen yang tidak perlu dicetak */
-  .tab-btn, .filter-btn, button,
-  #tab-input, #tab-tabel,
-  .modal-overlay, .toast,
-  nav, header > div > div:first-child > div:last-child { 
-    display: none !important; 
-  }
-
-  /* Paksa dashboard tetap tampil */
-  #tab-dashboard { display: block !important; }
-  body { font-family: 'IBM Plex Mono', monospace; font-size: 11px; }
-
-  /* HEADER CETAK — bersih dan formal */
-  header, [style*="background:var(--surface)"] {
-    background: #fff !important;
-    border-bottom: 2px solid #000 !important;
-    padding: 12px 0 !important;
-  }
-
-  /* Sembunyikan tombol di header, tampilkan hanya teks */
-  div[style*="gap:8px"] { display: none !important; }
-
-  /* KPI cards — border tipis hitam */
-  .kpi-card, #kpi-grid > div {
-    border: 1px solid #ccc !important;
-    border-top: 3px solid #000 !important;
+  /* KPI grid */
+  #kpi-grid {
+    display: grid !important;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 16px;
     page-break-inside: avoid;
   }
-
-  /* Nilai KPI tetap terbaca */
-  #kpi-grid [style*="font-size:17px"] { color: #000 !important; font-weight: 700 !important; }
-  #kpi-grid [style*="color:var(--dim)"] { color: #555 !important; }
-
-  /* HALAMAN 1: Header + KPI + Grafik jadi satu */
-  #kpi-grid { page-break-inside: avoid; margin-bottom: 16px; }
-  #kpi-grid + div { page-break-inside: avoid; } /* chart container */
-
-  /* HALAMAN 2: Progres rekening mulai halaman baru */
-  #kpi-grid + div + div { page-break-before: always; }
-
-  /* Canvas grafik */
-  canvas { 
-    max-width: 100% !important; 
-    max-height: 280px !important;
+  #kpi-grid > div {
+    background: #fff !important;
+    border: 1px solid #ccc !important;
+    border-top: 3px solid #333 !important;
+    padding: 10px 12px !important;
   }
+  #kpi-grid [style*="font-size:17px"] {
+    color: #000 !important;
+    font-weight: 700 !important;
+    font-size: 14px !important;
+  }
+  #kpi-grid [style*="color:var(--dim)"],
+  #kpi-grid .text-xs { color: #555 !important; }
 
-  /* Progress bar — tetap berwarna saat dicetak */
-  .progress-fill[style*="background:#22c55e"] { background: #16a34a !important; }
-  .progress-fill[style*="background:#eab308"] { background: #ca8a04 !important; }
-  .progress-fill[style*="background:#f97316"] { background: #ea580c !important; }
-  .progress-fill[style*="background:#ef4444"] { background: #dc2626 !important; }
+  /* Chart container */
+  #kpi-grid + div {
+    background: #fff !important;
+    border: 1px solid #ccc !important;
+    page-break-inside: avoid;
+    margin-bottom: 0;
+  }
+  #kpi-grid + div [style*="color:var(--dim)"] { color: #555 !important; }
+  canvas { max-width: 100% !important; max-height: 260px !important; }
+
+  /* Progres rekening — halaman baru */
+  #kpi-grid + div + div {
+    page-break-before: always;
+    background: #fff !important;
+    border: 1px solid #ccc !important;
+  }
+  #kpi-grid + div + div [style*="color:var(--dim)"] { color: #555 !important; }
+
+  /* Progress bars */
   .progress-bar { background: #e5e7eb !important; }
-
-  /* Teks progress rekening */
+  .progress-fill { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   #progress-list [style*="color:var(--text)"] { color: #111 !important; }
-  #progress-list [style*="color:var(--dim)"]  { color: #555 !important; }
+  #progress-list [style*="color:var(--dim)"]  { color: #666 !important; }
 
-  /* Margin halaman */
-  @page {
-    margin: 1.5cm 1.5cm 1.5cm 1.5cm;
-    size: A4 landscape;
-  }
+  /* Ukuran halaman */
+  @page { margin: 1.2cm; size: A4 landscape; }
 }
   .progress-bar { height: 4px; background: var(--border); border-radius: 3px; overflow: hidden; }
   .progress-fill { height: 100%; border-radius: 3px; transition: width .6s ease; }
@@ -188,6 +189,16 @@
 
 <div class="px-6 py-5" style="max-width:1400px;margin:0 auto;">
 
+  <!-- HEADER KHUSUS CETAK -->
+<div id="print-header" style="display:none;">
+  <div style="border-bottom:2px solid #000;padding-bottom:12px;margin-bottom:16px;">
+    <div style="font-size:10px;letter-spacing:3px;color:#555;margin-bottom:4px;">PEMERINTAH KABUPATEN MALANG</div>
+    <div style="font-size:18px;font-weight:700;color:#000;">LAPORAN REALISASI PENYERAPAN ANGGARAN</div>
+    <div style="font-size:12px;color:#333;margin-top:2px;">UPT Pengelolaan Taman · Tahun Anggaran 2026 · Sumber Dana: Pajak Air Tanah</div>
+    <div style="font-size:11px;color:#555;margin-top:6px;" id="print-date"></div>
+  </div>
+</div>
+  
   <!-- FILTER -->
   <div class="flex gap-2 items-center mb-5">
     <span class="text-xs tracking-widest" style="color:var(--dim)">FILTER:</span>
@@ -812,6 +823,14 @@ function importJSON(e) {
 // ═══════════════════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════════════════
+// Isi tanggal cetak otomatis
+const tgl = new Date();
+const printDateEl = document.getElementById("print-date");
+if(printDateEl) {
+  printDateEl.textContent = "Dicetak pada: " + tgl.toLocaleDateString("id-ID", {
+    weekday:"long", year:"numeric", month:"long", day:"numeric"
+  });
+}
 const wasLoaded = loadData();
 renderDashboard();
 renderInput();
