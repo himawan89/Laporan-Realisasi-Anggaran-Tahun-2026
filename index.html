@@ -64,6 +64,14 @@
   }
   .toast.show { opacity: 1; transform: translateY(0); }
 
+  @media print {
+    body { background: #fff !important; color: #000 !important; }
+    .tab-btn, .filter-btn, button { display: none !important; }
+    #tab-input, #tab-tabel { display: none !important; }
+    #tab-dashboard { display: block !important; }
+    canvas { max-width: 100% !important; }
+    * { box-shadow: none !important; border-color: #ccc !important; }
+  }
   .progress-bar { height: 4px; background: var(--border); border-radius: 3px; overflow: hidden; }
   .progress-fill { height: 100%; border-radius: 3px; transition: width .6s ease; }
 
@@ -87,6 +95,10 @@
       <input type="file" id="json-file-input" accept=".json" style="display:none" onchange="importJSON(this)"/>
       <button onclick="triggerImportJSON()"
         style="background:#1e2740;border:1px solid var(--border);color:#94a3b8;padding:6px 12px;border-radius:4px;cursor:pointer;font-family:inherit;font-size:11px;">
+      <button onclick="window.print()"
+        style="background:#1e3a5f;border:1px solid #1d4ed8;color:#93c5fd;padding:6px 12px;border-radius:4px;cursor:pointer;font-family:inherit;font-size:11px;">
+        🖨 Cetak / PDF
+      </button>
         ↑ Muat JSON
       </button>
       <button onclick="exportJSON()"
