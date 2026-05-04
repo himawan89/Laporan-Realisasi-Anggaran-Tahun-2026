@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>Laporan Realisasi Anggaran UPT Pengelolaan Taman Tahun 2026</title>
+<title>Kurva S — Monitoring Anggaran 2026</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
@@ -78,7 +78,7 @@
   <div>
     <div class="text-xs tracking-widest mb-1" style="color:var(--dim);letter-spacing:.2em">SISTEM MONITORING ANGGARAN</div>
     <div style="font-family:'IBM Plex Sans',sans-serif;font-size:18px;font-weight:700;color:#f1f5f9;">
-      LAPORAN REALISASI PENYERAPAN ANGGARAN <span style="color:var(--orange)">—</span> UPT PENGELOLAAN TAMAN
+      KURVA S <span style="color:var(--orange)">—</span> RENCANA PENYERAPAN ANGGARAN
     </div>
     <div class="text-xs mt-1" style="color:var(--dim)">Tahun Anggaran 2026 &middot; Sumber Dana: Pajak Air Tanah</div>
   </div>
@@ -252,7 +252,7 @@ let items = [
   buildItem("pd03","5.1.02.04.001.000 03","Perjalanan Dinas Dalam Kota","operasi",119040000,[10880000,10880000,10880000,10880000,10880000,10880000,10880000,10880000,10880000,10880000,10240000,0],[12160000,10080000,8960000]),
   buildItem("jk05","5.1.02.02.008.000 05","Jasa Konsultansi Perencanaan","operasi",32000000,[0,0,0,32000000,0,0,0,0,0,0,0,0],[]),
   buildItem("jk18","5.1.02.02.008.000 18","Jasa Konsultansi Pengawasan","operasi",20000000,[0,0,0,20000000,0,0,0,0,0,0,0,0],[]),
-  buildItem("m03","5.2.02.02.001.000 03","Modal Kendaraan Angkutan Barang","modal",155560000,[30090000,0,0,30090000,0,0,70090000,0,0,25290000,0,0],[]),
+  buildItem("m03","5.2.02.02.001.000 03","Modal Kendaraan Angkutan Barang","modal",155560000,[30090000,0,0,30090000,0,0,70090000,0,0,25290000,0,0],[0,21294000,0]),
   buildItem("m05","5.2.02.02.001.000 05","Modal Kendaraan Roda Tiga","modal",21294000,[5323500,0,0,5323500,0,0,5323500,0,0,5323500,0,0],[]),
   buildItem("m36","5.2.03.01.001.000 36","Modal Taman (Rehabilitasi)","modal",400000000,[0,0,0,0,0,400000000,0,0,0,0,0,0],[]),
 ];
@@ -355,9 +355,9 @@ function renderDashboard() {
     </div>
   `).join("");
 
-  // Chart data
+  // Chart data — dimulai dari titik 0 di kiri bawah
   let rncKum=0, relKum=0;
-  const labels=[], rncBulan=[], relBulan=[], rncKumArr=[], relKumArr=[];
+  const labels=[""], rncBulan=[null], relBulan=[null], rncKumArr=[0], relKumArr=[0];
   BULAN.forEach((b,idx)=>{
     const rB = filtered.reduce((s,i)=>s+(i.rencana[idx]||0),0);
     const eB = filtered.reduce((s,i)=>s+sumE(i.entries,idx),0);
